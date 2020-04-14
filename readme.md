@@ -1,3 +1,15 @@
+# How to build
+
+Git clone it to your local drive. 
+
+I personally used Qt5.12.5 + MSVC2017 64bit. Feel free to try your own compile chain. I had issue with MinGW 64bit where it does not like how a pointer is converted to uint. You can surpress this error by re-configuring. 
+
+Go to qwt in src/ and build it in debug and release. It might take 10mins. 
+
+Use `lib /machine:x64 /def:libfftw3-3.def` command to generate import libraries. 
+
+Currently I'm having issues with getting the analysis functions to display. Will investigate and update.
+
 # 简介
 
 这是一个数据预处理软件，主要负责数据挖掘的数据清洗工作，如对一些科研实验数据的清洗和预处理
