@@ -84,8 +84,12 @@
 #include "SAChart2D.h"
 // |-----宏-----------------
 #include "DebugInfo.h"
+// |-----czy
+#include <czyQtUI.h>
+#include <czyQtApp.h>
+#include <czyMath_Interpolation.h>
 // |-----model class --------------
-#include "MdiWindowModel.h"
+#include <MdiWindowModel.h>
 #include "DataFeatureTreeModel.h"
 #include <SAVariantHashTableModel.h>
 #include <SACsvFileTableModel.h>
@@ -93,6 +97,7 @@
 //--------3thparty-----------
 #define TR(str) \
     QApplication::translate("MainWindow", str, 0)
+
 
 
 
@@ -119,8 +124,8 @@ MainWindow::MainWindow(QWidget *parent) :
   ,ui_status_progress(nullptr)
   ,ui_status_info(nullptr)
   ,m_nProjectCount(0)
-  ,m_figureRightClickChart(nullptr)
   ,m_nUserChartCount(0)
+  ,m_figureRightClickChart(nullptr)
 {
     saAddLog("start app");
 
@@ -484,6 +489,25 @@ void MainWindow::initUIReflection()
 {
     saUIRef->setupUI(m_uiInterface);//saUI保存主窗口指针
     saProjectManager->setupUI(m_uiInterface);
+    //初始化项目管理器的其他函数指针
+    auto funSaveAction = [this](SAProjectManager* pm){
+        if(!pm->isValid())
+        {
+            return;
+        }
+        QString folderPath = pm->getProjectSubWindowFolderPath(true);
+        __saveSubWindowToFolder(folderPath);
+    };
+    auto funLoadAction = [this](SAProjectManager* pm){
+        if(!pm->isValid())
+        {
+            return;
+        }
+        QString folderPath = pm->getProjectSubWindowFolderPath(true);
+        __loadSubWindowFromFolder(folderPath);
+    };
+    saProjectManager->addSaveFunctionAction(funSaveAction);
+    saProjectManager->addLoadFunctionAction(funLoadAction);
 }
 
 ///
@@ -1632,13 +1656,14 @@ SAAbstractRegionSelectEditor::SelectionMode MainWindow::getCurrentChartRegionSel
     return SAAbstractRegionSelectEditor::SingleSelection;
 }
 
-SAMdiSubWindow *MainWindow::createMdiSubWindow(QWidget *w, const QString &title)
+SAMdiSubWindow *MainWindow::createMdiSubWindow(SA::SubWndType type, QWidget *w, const QString &title)
 {
     SAMdiSubWindow* pSubw = m_mdiManager.newMdiSubWnd<SAMdiSubWindow>(w);
     if(nullptr == pSubw)
         return pSubw;
+    pSubw->setType(type);
     pSubw->setWindowTitle(title);
-    pSubw->setWindowIcon(getIconByWndClassName(w));
+    pSubw->setWindowIcon(getIconByWndType(type));
     connect(pSubw,&SAMdiSubWindow::closedWindow
             ,this,&MainWindow::onSubWindowClosed);
     emit subWindowHaveCreated(pSubw);
@@ -2117,7 +2142,7 @@ QProgressBar *MainWindow::getProgressStatusBar()
 /// \note 注意，若没有显示，getCurrentFigureWindow返回的还是上次显示的figureWidget
 /// \return 绘图窗口Pointer,如果内存溢出返回nullptr
 ///
-SAMdiSubWindow *MainWindow::createFigureWindow(const QString &title)
+QMdiSubWindow *MainWindow::createFigureWindow(const QString &title)
 {
     m_nUserChartCount++;
     QString str = title;
@@ -2125,7 +2150,7 @@ SAMdiSubWindow *MainWindow::createFigureWindow(const QString &title)
     {
         str = tr("figure[%1]").arg(m_nUserChartCount);
     }
-    SAMdiSubWindow* pSubWnd =  createMdiSubWindow<SAFigureWindow>(str);
+    SAMdiSubWindow* pSubWnd =  createMdiSubWindow<SAFigureWindow>(SA::SubWindowFigure,str);
     if(!pSubWnd)
     {
         --m_nUserChartCount;
@@ -2140,7 +2165,7 @@ SAMdiSubWindow *MainWindow::createFigureWindow(const QString &title)
     return pSubWnd;
 }
 
-SAMdiSubWindow *MainWindow::createFigureWindow(SAFigureWindow *fig, const QString &title)
+QMdiSubWindow *MainWindow::createFigureWindow(SAFigureWindow *fig, const QString &title)
 {
     m_nUserChartCount++;
     QString str = title;
@@ -2148,7 +2173,7 @@ SAMdiSubWindow *MainWindow::createFigureWindow(SAFigureWindow *fig, const QStrin
     {
         str = tr("figure[%1]").arg(m_nUserChartCount);
     }
-    SAMdiSubWindow* pSubWnd =  createMdiSubWindow(fig,str);
+    SAMdiSubWindow* pSubWnd =  createMdiSubWindow(SA::SubWindowFigure,fig,str);
     if(!pSubWnd)
     {
         --m_nUserChartCount;
@@ -2541,21 +2566,20 @@ void MainWindow::showWidgetMessageInfo(const QString& info, QWidget* widget, SA:
 
 
 
-/**
- * @brief 根据类名来获取图标
- * @param w
- * @return
- */
-QIcon MainWindow::getIconByWndClassName(QWidget *w)
+
+QIcon MainWindow::getIconByWndType(SA::SubWndType type)
 {
-    if(w->inherits("SAFigureWindow"))
+    switch(type)
     {
+    case SA::SubWindowUserDefine:
+        return QIcon();
+    case SA::SubWindowFigure:
         return QIcon(":/icons/icons/figureIcon.png");
+    default:
+        return QIcon();
     }
     return QIcon();
 }
-
-
 
 ///
 /// \brief 提取图表中曲线的数据到sa中，以便用于其他的分析
@@ -3007,6 +3031,67 @@ void MainWindow::updateChartEditorActionState(SAChart2D *chart)
 }
 
 ///
+/// \brief 把窗口保存到文件夹
+/// \param folder
+///
+void MainWindow::__saveSubWindowToFolder(const QString &folderPath)
+{
+    QList<QMdiSubWindow*> subWndList = this->getSubWindowList();
+    //先把名字不对应的删除
+    remove_figure_file_not_in_sub_window_list(folderPath,subWndList);
+    //保存窗口
+    const int count = subWndList.size();
+    QString errString;
+    for(int i=0;i<count;++i)
+    {
+        SAMdiSubWindow* subWnd = qobject_cast<SAMdiSubWindow*>(subWndList[i]);
+        if(subWnd)
+        {
+            if(!save_sub_window(subWnd,folderPath,&errString))
+            {
+                showMessageInfo(errString,SA::WarningMessage);
+            }
+        }
+    }
+}
+
+void MainWindow::__loadSubWindowFromFolder(const QString &folderPath)
+{
+    QDir dir(folderPath);
+    if(!dir.exists())
+    {
+        showMessageInfo(tr("project may have not subwindow path :\"%1\"").arg(folderPath),SA::WarningMessage);
+        return;
+    }
+    QString suffix = get_sub_window_type_suffix(SA::SubWindowFigure);
+    QStringList dataFileList = dir.entryList({"*."+suffix},QDir::Files|QDir::NoSymLinks);
+    const int size = dataFileList.size();
+    if(0 == size)
+    {
+        return;
+    }
+    QString errString;
+    for(int i=0;i<size;++i)
+    {
+        if(QMdiSubWindow* s = load_sub_window(uiInterface(),dir.absoluteFilePath(dataFileList[i]),&errString))
+        {
+            Q_UNUSED(s);
+        }
+        else
+        {
+            showMessageInfo(errString,SA::WarningMessage);
+        }
+    }
+}
+
+
+
+
+
+
+
+
+///
 /// \brief 删除变量
 ///
 void MainWindow::onActionValueDeleteTriggered()
@@ -3026,3 +3111,183 @@ void MainWindow::onActionValueDeleteTriggered()
     saValueManager->removeDatas(datas);
 }
 
+
+
+
+
+///
+/// \brief 保存子窗口到文件
+/// \param w 子窗口
+/// \param folderPath 保存的文件夹路径
+/// \param errString 错误提示
+///
+bool save_sub_window(SAMdiSubWindow *w,const QString& folderPath,QString* errString)
+{
+    QString title = w->windowTitle();
+    QString suffix = get_sub_window_type_suffix(w->getType());
+    QString filePath = QDir::cleanPath(folderPath) + QDir::separator() + title + "." + suffix;
+    QFile file(filePath);
+    QWidget* innerWidget = w->widget();
+    switch(w->getType())
+    {
+    case SA::SubWindowFigure:
+    {
+        if(!file.open(QIODevice::WriteOnly))
+        {
+           if(errString)
+           {
+               *errString = file.errorString();
+           }
+           return false;
+        }
+        SAFigureWindow* fig = qobject_cast<SAFigureWindow*>(innerWidget);
+        if(fig)
+        {
+            SAMdiSubWindowSerializeHead header;
+            header.setValid();
+            header.param.type = (int)w->getType();
+            QDataStream out(&file);
+            out << header;
+            out << w->windowTitle();
+            out << fig;
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    return true;
+
+}
+///
+/// \brief 从文件加载子窗口
+/// \param w 主对话框
+/// \param filePath 文件路径
+/// \param errString 错误信息
+/// \return
+///
+QMdiSubWindow* load_sub_window(SAUIInterface *ui, const QString &filePath, QString *errString)
+{
+    QFile file(filePath);
+    if(!file.open(QIODevice::ReadOnly))
+    {
+        if(errString)
+        {
+            *errString = file.errorString();
+        }
+        return nullptr;
+    }
+    try
+    {
+        SAMdiSubWindowSerializeHead header;
+        QDataStream in(&file);
+        in >> header;
+        if(!header.isValid())
+        {
+            if(errString)
+            {
+                *errString = QObject::tr("invalid file");
+            }
+            return nullptr;
+        }
+        QString windowTitle;
+        in >> windowTitle;
+        QMdiSubWindow* sub = nullptr;
+        switch(header.param.type)
+        {
+        case SA::SubWindowFigure:
+        {
+#if 0
+            sub = ui->createFigureWindow(windowTitle);
+            SAFigureWindow* fig = qobject_cast<SAFigureWindow*>(sub->widget());
+            
+#else
+            saPrint() << " before create fig";
+            SAFigureWindow* fig = new SAFigureWindow(); 
+#endif
+            if(fig)
+            {
+                in >> fig;
+                fig->clearUndoCommand();//加载的把命令清空
+            }
+#if 0
+#else
+            saPrint() << " before create sub";
+            sub = ui->createFigureWindow(fig,windowTitle);
+            saPrint() << " after create sub";
+#endif
+            sub->show();
+        }
+        default:
+            break;
+        }
+        return sub;
+    }
+    catch(const sa::SABadSerializeExpection& exp)
+    {
+        if(errString)
+        {
+            *errString = TR("unable load window:%1").arg(filePath);
+        }
+        saWarning("load figure window error:%s",exp.what());
+    }
+    catch(...)
+    {
+        if(errString)
+        {
+            *errString = TR("unable load window:%1").arg(filePath);
+        }
+        saWarning("load figure window error");
+    }
+    return nullptr;
+}
+
+QString get_sub_window_type_suffix(SA::SubWndType type)
+{
+    switch(type)
+    {
+    case SA::SubWindowFigure:
+        return "saFig";
+    default:
+        break;
+    }
+    return "saSubWnd";
+}
+
+///
+/// \brief 把没能和SubWindowList对应的文件删除
+/// \param folderPath
+/// \param subWindows
+///
+void remove_figure_file_not_in_sub_window_list(const QString &folderPath, const QList<QMdiSubWindow *> &subWindows)
+{
+    QDir dir(folderPath);
+    if(!dir.exists())
+    {
+        return;
+    }
+
+    QStringList figureSubWindowFileNames;
+    const int size = subWindows.size();
+    QString suffix = get_sub_window_type_suffix(SA::SubWindowFigure);
+    for(int i=0;i<size;++i)
+    {
+        SAMdiSubWindow* w = qobject_cast<SAMdiSubWindow*>(subWindows[i]);
+        if(nullptr == w)
+            continue;
+        if(SA::SubWindowFigure == w->getType())
+        {
+            figureSubWindowFileNames.append(w->windowTitle()+ "." + suffix);
+        }
+    }
+    QString cleanFolderPath = QDir::cleanPath(folderPath);
+    QStringList dataFileList = dir.entryList({"*."+suffix},QDir::Files|QDir::NoSymLinks);
+    const int fileSize = dataFileList.size();
+    for(int i=0;i<fileSize;++i)
+    {
+        if(!figureSubWindowFileNames.contains(dataFileList[i]))
+        {
+            QFile::remove(cleanFolderPath + QDir::separator() + dataFileList[i]);
+        }
+    }
+}

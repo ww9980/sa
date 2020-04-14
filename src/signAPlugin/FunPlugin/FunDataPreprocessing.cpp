@@ -17,10 +17,9 @@
 #include "SAChart.h"
 #include "qwt_symbol.h"
 #include <QMdiSubWindow>
-#include "SAMdiSubWindow.h"
 #include "SAGUIGlobalConfig.h"
 #include "ui_opt.h"
-#include "SAAlgorithm.h"
+#include "czyAlgorithm.h"
 #include "SARandColorMaker.h"
 #include <QApplication>
 #define TR(str)\
@@ -79,8 +78,8 @@ void sigmaDetect(SAUIInterface* ui)
             if(isMark)
             {
                 QVector<double> oxs,oys;
-                SA::copy_inner_indexs(xs.begin(),indexs.begin(),indexs.end(),std::back_inserter(oxs));
-                SA::copy_inner_indexs(ys.begin(),indexs.begin(),indexs.end(),std::back_inserter(oys));
+                czy::copy_inner_indexs(xs.begin(),indexs.begin(),indexs.end(),std::back_inserter(oxs));
+                czy::copy_inner_indexs(ys.begin(),indexs.begin(),indexs.end(),std::back_inserter(oys));
                 QwtPlotCurve* curs = new QwtPlotCurve(QString("%1_outSigmaMarker").arg(title));
                 curs->setSamples(oxs,oys);
                 SAChart::setCurvePenStyle(curs,Qt::NoPen);
@@ -104,10 +103,10 @@ void sigmaDetect(SAUIInterface* ui)
                 {
                     allIndex.append(i);
                 }
-                SA::copy_out_of_indexs(allIndex.begin(),allIndex.end(),indexs.begin(),indexs.end(),std::back_inserter(innerIndex));
+                czy::copy_out_of_indexs(allIndex.begin(),allIndex.end(),indexs.begin(),indexs.end(),std::back_inserter(innerIndex));
                 QVector<double> oxs,oys;
-                SA::copy_inner_indexs(xs.begin(),innerIndex.begin(),innerIndex.end(),std::back_inserter(oxs));
-                SA::copy_inner_indexs(ys.begin(),innerIndex.begin(),innerIndex.end(),std::back_inserter(oys));
+                czy::copy_inner_indexs(xs.begin(),innerIndex.begin(),innerIndex.end(),std::back_inserter(oxs));
+                czy::copy_inner_indexs(ys.begin(),innerIndex.begin(),innerIndex.end(),std::back_inserter(oys));
                 QVector<QPointF> oxys;
                 saFun::makeVectorPointF(oxs,oys,oxys);;
 
@@ -400,7 +399,7 @@ void sigmaDetectInValue(SAUIInterface* ui)
     //========================
     if(dlg.getDataByID<bool>(idPlotInNewFigure))
     {
-        SAMdiSubWindow* sub = ui->createFigureWindow();
+        QMdiSubWindow* sub = ui->createFigureWindow();
         SAFigureWindow* fig = ui->getFigureWidgetFromMdiSubWindow(sub);
         SAChart2D* chart = fig->current2DPlot();
         if(nullptr == chart)
@@ -597,7 +596,7 @@ void FunDataPreprocessing::pointSmoothInValue()
     saValueManager->addData(res);
     if(dlg.getDataByID<bool>(idIsPlot))
     {
-        SAMdiSubWindow* sub = saUI->createFigureWindow();
+        QMdiSubWindow* sub = saUI->createFigureWindow();
         SAFigureWindow* fig = saUI->getFigureWidgetFromMdiSubWindow(sub);
         SAChart2D* chart = fig->current2DPlot();
         if(nullptr == chart)

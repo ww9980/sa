@@ -18,7 +18,6 @@
 #endif
 
 class SATcpClientPrivate;
-class SAXMLProtocolParser;
 class SATcpSocket;
 /**
  * @brief 客户端的封装
@@ -33,14 +32,12 @@ class SASERVE_EXPORT SATcpClient : public QObject
     Q_OBJECT
 public:
     enum ClientError{
-        UnknowError = 0///< 未知错误
+        UnknowError ///< 未知错误
         ,SharedMemoryNotReadyError = 1///< 共享内存还未准备好
-        ,SharedMemoryGetPortError = 2 ///< 从共享内存获取的port不正确
-        ,ConnectTimeout = 3 ///< 连接服务器超时
-        ,InvalidXmlProtocol = 4 ///< 收到的是xml协议请求，但无法解析到标准xml协议
-        ,MaxSATcpClientError = 20 ///< SATcpClient对应的最大错误值
+        ,SharedMemoryGetPortError ///< 从共享内存获取的port不正确
+        ,ConnectTimeout ///< 连接服务器超时
 
-        ,UserDefineError = 9000 ///< 用户自定义错误
+        ,UserDefineError = 1000 ///< 用户自定义错误
     };
 
     SATcpClient(QObject* par = nullptr);
@@ -49,7 +46,7 @@ public:
     bool write(const SAProtocolHeader& header,const QByteArray& data);
     //处理协议数据的函数
     virtual bool deal(const SAProtocolHeader &header, const QByteArray &data);
-    virtual bool dealXmlProtocol(const SAProtocolHeader &header, SAXMLProtocolParser* xml);
+    virtual bool dealResult(const SAProtocolHeader &header, const QVariantHash &data);
     //获取socket
     inline SATcpSocket* getSocket() const;
 public slots:
@@ -88,10 +85,10 @@ signals:
      */
     void replyToken(const QString& token,int sequenceID);
     /**
-     * @brief socket错误
+     * @brief error
      * @param socketError
      */
-    void socketError(QAbstractSocket::SocketError socketError);
+    void error(QAbstractSocket::SocketError socketError);
     /**
      * @brief socket连接成功的信号
      */

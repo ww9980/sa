@@ -16,10 +16,7 @@ CONFIG(debug, debug|release){
 }
 CONFIG += c++11
 
-#常用程序算法封装
-include($$PWD/../signAUtil/signAUtil.pri)
-#科学计算相关库
-include($$PWD/../signAScience/signAScience.pri)
+include($$PWD/../czy/czy_math.pri)
 #sa api support
 include($$PWD/../signALib/signALib.pri)
 include($$PWD/../3rdParty/qwt/qwt_set.pri)

@@ -202,7 +202,7 @@ int SAItem::getPropertyCount() const
 /// \param id
 /// \return
 ///
-const QVariant &SAItem::property(int id) const
+const QVariant &SAItem::getProperty(int id) const
 {
     return d_ptr->m_datas[id];
 }
@@ -211,33 +211,22 @@ const QVariant &SAItem::property(int id) const
 /// \param id
 /// \return 获取为引用，修改将直接影响条目保存的数据内容
 ///
-QVariant &SAItem::property(int id)
+QVariant &SAItem::getProperty(int id)
 {
     return d_ptr->m_datas[id];
 }
 ///
 /// \brief 根据索引顺序获取扩展数据，此函数仅仅为了方便遍历所有扩展数据用
-/// \param index 索引顺序
-/// \param id 返回hash的key
-/// \param var 返回hash的value
+/// \param index 索引
+/// \param id
+/// \param var
 ///
-void SAItem::property(int index, int &id, QVariant &var) const
+void SAItem::getProperty(int index, int &id, QVariant &var) const
 {
     auto ite = d_ptr->m_datas.cbegin();
     ite = ite + index;
     id = ite.key();
     var = ite.value();
-}
-
-/**
- * @brief 获取属性值
- * @param id
- * @param defaultvar
- * @return
- */
-QVariant SAItem::getProperty(int id, const QVariant &defaultvar)
-{
-    return d_ptr->m_datas.value(id,defaultvar);
 }
 ///
 /// \brief 子条目的数目
@@ -443,11 +432,11 @@ QDebug& print_one_item(QDebug& dbg, const SAItem &item, const QString& prefix,bo
         dbg.noquote() << prefix << item.getName() << "{";
         int id;
         QVariant val;
-        item.property(0,id,val);
+        item.getProperty(0,id,val);
         dbg.noquote() << id << ":" << val;
         for(int i=1;i<pc;++i)
         {
-            item.property(i,id,val);
+            item.getProperty(i,id,val);
             dbg.noquote() << "," << id << ":" << val;
         }
         dbg.noquote() << "}";

@@ -21,6 +21,8 @@ private:
     ~SAGlobalConfig();
     Q_DISABLE_COPY(SAGlobalConfig)
 public:
+    template<typename T>
+    T valueFromKey(const QString &content, const QString &key,const T& defaultVal);
     //获取uint型的配置
     unsigned int getUIntValue(const QString& content,const QString& key,const unsigned int& defaultVal = -1) const;
     void setUIntValue(const QString& content,const QString& key,const unsigned int& val);

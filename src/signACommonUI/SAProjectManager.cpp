@@ -1,97 +1,20 @@
 ﻿#include "SAProjectManager.h"
 #include "SAValueManager.h"
-#include <QFile>
-#include <QHash>
 #include <QDir>
 #include <QTextStream>
 #include <QDomDocument>
 #include <QFileInfo>
-#include <QSet>
-#include <QScopedPointer>
-#include "SAFigureWindow.h"
-#include "SAMdiSubWindowSerializeHead.h"
-#include "SAMdiSubWindow.h"
 #include "SALog.h"
 #define VERSION_STRING "pro.0.0.1"
 #define PROJECT_DES_XML_FILE_NAME "saProject.prodes"
 #define DATA_FOLDER_NAME "DATA"
 #define SUB_WINDOW_FOLDER_NAME "Wind"
 #define TEMP_FOLDER_NAME "Temp"
-
-bool save_figure_wnd(QFile* file,QWidget* w,SAUIInterface* ui,QString* err);
-QWidget *load_figure_wnd(QFile* file, SAUIInterface* ui, QString* err);
-
-bool save_figure_wnd(QFile* file,QWidget* w,SAUIInterface* ui,QString* err)
-{
-    Q_CHECK_PTR(file);
-    Q_CHECK_PTR(w);
-    Q_UNUSED(ui);
-    SAFigureWindow* fig = qobject_cast<SAFigureWindow*>(w);
-    if(nullptr == fig)
-    {
-        if(err)
-        {
-            *err = QObject::tr("widget class not match:SAFigureWindow");
-        }
-        return false;
-    }
-    SAMdiSubWindowSerializeHead header;
-    header.init();
-    setTypeNameToSerializeHead(fig->metaObject()->className(),header);
-    QDataStream out(file);
-    out << header;
-    out << w->windowTitle();
-    try {
-        out << fig;
-    } catch (std::exception e) {
-        *err = e.what();
-        return false;
-    }
-    return true;
-}
+SAProjectManager* SAProjectManager::s_instance = nullptr;
 
 
 
-QWidget* load_figure_wnd(QFile* file,SAUIInterface* ui,QString* err)
-{
-    Q_CHECK_PTR(file);
-    Q_CHECK_PTR(ui);
-    QDataStream in(file);
-    SAMdiSubWindowSerializeHead header;
-    in >> header;
-    if(!header.isValid())
-    {
-        if(err)
-        {
-           *err = QObject::tr("unknow header,from file:%1").arg(file->fileName());
-        }
-        return nullptr;
-    }
-    std::unique_ptr<SAFigureWindow> w = std::make_unique<SAFigureWindow>();
-    QString classname(header.param.typeName);
-    if(classname != w->metaObject()->className())
-    {
-        if(err)
-        {
-           *err = QObject::tr("unknow class info in file:%1 when create SAFigureWindow").arg(classname);
-        }
-        return nullptr;
-    }
-    QString windowTitle;
-    in >> windowTitle;
-    try {
-        in >> w.get();
-    } catch (std::exception e) {
-        *err = e.what();
-        return nullptr;
-    }
-    return w.release();
-}
 
-/**
- * @brief figure 的子窗口后缀
- */
-const QString C_SUBWND_FIGURE_WND_SUFFIX = "saFig";
 
 class SAProjectManagerPrivate
 {
@@ -102,11 +25,12 @@ public:
     QString m_projectName;///< 项目名
     QString m_projectDescribe;///< 项目描述
     bool m_isdirty;///< 工程变更标记
-    QHash<QString,QString> m_subwindowClassNameToSuffix;///< mdi子窗口类名对应的后缀名
+    //--记录文件和数据相互的映射
+//    QMap<QString,SAAbstractDatas*> m_dataFileName2DataPtr;///< 记录数据文件路径
+//    QMap<SAAbstractDatas*,QString> m_dataPtr2DataFileName;///< 记录数据指针对应的保存文件名
     //保存其他操作的函数指针
     QList<SAProjectManager::FunAction> m_funcSaveActionList;///< 保存时的额外动作列表
     QList<SAProjectManager::FunAction> m_funcLoadActionList;///< 加载是的额外动作列表
-    QHash<QString,QPair<SAProjectManager::SubWndSaveFun,SAProjectManager::SubWndLoadFun> > m_funcSubWndSaveLoad;///< 子窗口的加载和保存指针
     SAProjectManagerPrivate(SAProjectManager* p):q_ptr(p)
     {
 
@@ -120,8 +44,6 @@ SAProjectManager::SAProjectManager():QObject(nullptr)
     connect(saValueManager,&SAValueManager::dataRemoved,this,&SAProjectManager::onDataRemoved);
     connect(saValueManager,&SAValueManager::dataNameChanged,this,&SAProjectManager::onDataNameChanged);
     connect(saValueManager,&SAValueManager::dataClear,this,&SAProjectManager::onDataClear);
-    //NOTE : 如果类名变更，必须更改此处
-    registerMdiSubWindow("SAFigureWindow",&save_figure_wnd,&load_figure_wnd);
 }
 
 SAProjectManager::~SAProjectManager()
@@ -144,8 +66,11 @@ bool SAProjectManager::isValid() const
 ///
 SAProjectManager *SAProjectManager::getInstance()
 {
-    static SAProjectManager s_instance;
-    return &s_instance;
+    if(nullptr == s_instance)
+    {
+        s_instance = new SAProjectManager();
+    }
+    return s_instance;
 }
 ///
 /// \brief 获取当前项目的全称路径
@@ -214,159 +139,6 @@ void SAProjectManager::saveProjectInfo(const QString &projectFullPath)
     }
 }
 
-/**
- * @brief 把默认的子窗口保存到目录下
- * @param projectFullPath 指定要保存的目录
- * @note 对于未知的窗口，此行数不做任何动作，需要使用@see registerSaveAction 来执行其他动作
- */
-bool SAProjectManager::saveSubWindowToFolder(const QString &folderPath,bool isremoveNoneSubWndFile)
-{
-    if(nullptr == ui())
-        return false;
-    QList<QMdiSubWindow*> subWndList = ui()->getSubWindowList();
-    //先把名字不对应的删除
-    if(isremoveNoneSubWndFile)
-    {
-        removeSubWndFileNotInMainWindow(folderPath,subWndList);
-    }
-    //保存窗口
-    const int count = subWndList.size();
-    QString errString;
-    for(int i=0;i<count;++i)
-    {
-        SAMdiSubWindow* subWnd = qobject_cast<SAMdiSubWindow*>(subWndList[i]);
-        if(subWnd)
-        {
-            if(!saveSubWindow(subWnd,folderPath,&errString))
-            {
-                emit messageInformation(errString,SA::WarningMessage);
-                continue;
-            }
-        }
-    }
-    return true;
-}
-
-/**
- * @brief 从文件夹中加载窗口
- * @param folderPath
- * @return 返回加载成功的窗口数
- */
-int SAProjectManager::loadSubWindowFromFolder(const QString &folderPath)
-{
-    if(nullptr == ui())
-        return false;
-    QDir dir(folderPath);
-    if(!dir.exists())
-    {
-        emit messageInformation(tr("project may have not subwindow path :\"%1\"").arg(folderPath),SA::WarningMessage);
-        return 0;
-    }
-    QStringList suffix;
-    suffix << QString("*.%1").arg(C_SUBWND_FIGURE_WND_SUFFIX);
-    QStringList dataFileList = dir.entryList(suffix,QDir::Files|QDir::NoSymLinks);
-    int size = dataFileList.size();
-    if(0 == size)
-    {
-        return 0;
-    }
-    QString errString;
-    for(int i=0;i<size;++i)
-    {
-        QWidget* w = loadSubWindow(dir.absoluteFilePath(dataFileList[i]),&errString);
-        if(nullptr == w)
-        {
-            emit messageInformation(errString,SA::WarningMessage);
-            --size;
-        }
-        SAMdiSubWindow* subw = ui()->createMdiSubWindow(w,w->windowTitle());
-        if(subw)
-        {
-            subw->show();
-        }
-    }
-    return size;
-}
-
-/**
- * @brief 保存一个子窗口到文件夹
- * @param w 窗口指针
- * @param folderPath 文件夹路径
- * @param errString 错误信息
- * @return 成功返回true
- */
-bool SAProjectManager::saveSubWindow(SAMdiSubWindow *w, const QString &folderPath, QString *errString)
-{
-    QString title = w->windowTitle();
-    QWidget* innerWidget = w->widget();
-    QString filePath = QDir::cleanPath(folderPath) + QDir::separator() + title + "." + C_SUBWND_FIGURE_WND_SUFFIX;
-    QFile file(filePath);
-    if(!file.open(QIODevice::WriteOnly))
-    {
-        if(errString)
-        {
-            *errString = file.errorString();
-        }
-        return false;
-    }
-    auto res = d_ptr->m_funcSubWndSaveLoad.find(innerWidget->metaObject()->className());
-    if(res == d_ptr->m_funcSubWndSaveLoad.end())
-    {
-        if(errString)
-        {
-            *errString = tr("can not save window,title:%1,inner widget class name is:%2")
-                        .arg(w->windowTitle())
-                        .arg(innerWidget->metaObject()->className());
-        }
-        return false;
-    }
-    SubWndSaveFun fun = res.value().first;
-    return fun(&file,innerWidget,ui(),errString);
-}
-
-/**
- * @brief 从文件加载子窗口
- * @param filepath 文件路径
- * @param errString 错误提示
- * @return 成功加载返回widget指针
- */
-QWidget *SAProjectManager::loadSubWindow(const QString &filepath, QString *errString)
-{
-    QFile file(filepath);
-    if(!file.open(QIODevice::ReadOnly))
-    {
-        if(errString)
-        {
-            *errString = file.errorString();
-        }
-        return nullptr;
-    }
-    SAMdiSubWindowSerializeHead header;
-    QDataStream in(&file);
-    in >> header;
-    if(!header.isValid())
-    {
-        if(errString)
-        {
-            *errString = QObject::tr("invalid file");
-        }
-        return nullptr;
-    }
-    QString className = getTypeNameFromSerializeHead(header);
-    auto ite = d_ptr->m_funcSubWndSaveLoad.find(className);
-    if(ite == d_ptr->m_funcSubWndSaveLoad.end())
-    {
-        if(errString)
-        {
-            *errString = QObject::tr("can not find className:%1").arg(className);
-        }
-        return nullptr;
-    }
-    file.seek(0);
-    SubWndLoadFun fun = ite.value().second;
-    return fun(&file,ui(),errString);
-}
-
 ///
 /// \brief 插入变量信息
 /// \param doc DomDoc
@@ -383,42 +155,6 @@ void SAProjectManager::writeValuesXmlInfos(QDomDocument *doc,QDomNode* root)
         eleVar.appendChild(eleName);
         eleName.appendChild(doc->createTextNode(d->getName()));
     });
-}
-
-/**
- * @brief 把没能和SubWindowList对应的文件删除
- * @param folderPath
- * @param subWindows
- */
-void SAProjectManager::removeSubWndFileNotInMainWindow(const QString &folderPath, const QList<QMdiSubWindow *> &subWindows)
-{
-    QDir dir(folderPath);
-    if(!dir.exists())
-    {
-        return;
-    }
-
-    QSet<QString> figureSubWindowFileNames;
-    for(QMdiSubWindow *sub : subWindows)
-    {
-        SAMdiSubWindow* w = qobject_cast<SAMdiSubWindow*>(sub);
-        if(nullptr == w)
-        {
-            continue;
-        }
-        figureSubWindowFileNames.insert(w->windowTitle()+ "." + C_SUBWND_FIGURE_WND_SUFFIX);
-    }
-    qDebug() << "**************" << figureSubWindowFileNames;
-    QString cleanFolderPath = QDir::cleanPath(folderPath);
-    QStringList dataFileList = dir.entryList({"*."+C_SUBWND_FIGURE_WND_SUFFIX},QDir::Files|QDir::NoSymLinks);
-    const int fileSize = dataFileList.size();
-    for(int i=0;i<fileSize;++i)
-    {
-        if(!figureSubWindowFileNames.contains(dataFileList[i]))
-        {
-            QFile::remove(cleanFolderPath + QDir::separator() + dataFileList[i]);
-        }
-    }
 }
 
 ///
@@ -447,7 +183,7 @@ bool SAProjectManager::loadProjectInfo(const QString &projectFullPath, QStringLi
         return false;
     }
     QString ver = root.attribute("version");
-    qDebug() << "version:" << ver;
+    saDebug("version:%s",ver);
     QDomNode node = root.firstChild();//读取第一个子节点
     while (!node.isNull())
     {
@@ -643,12 +379,10 @@ void SAProjectManager::removeNonExistDatas(const QString &projectFullPath)
     QStringList dataFileList = dir.entryList({"*.sad"},QDir::Files|QDir::NoSymLinks);
     QList<SAAbstractDatas*> datas = saValueManager->allDatas();
     QSet<QString> dataNameSet;
-    for(const SAAbstractDatas* d : datas)
-    {
+    std::for_each(datas.begin(),datas.end(),[&dataNameSet](const SAAbstractDatas* d){
         dataNameSet.insert(d->getName());
-    }
-    for(const QString& fileName : dataFileList)
-    {
+    });
+    std::for_each(dataFileList.begin(),dataFileList.end(),[&](const QString& fileName){
         QString basefileName = fileName.left(fileName.size()-4);
         if(!dataNameSet.contains(basefileName))
         {
@@ -660,7 +394,7 @@ void SAProjectManager::removeNonExistDatas(const QString &projectFullPath)
             QFile::copy(originPath,tmpPath);
             QFile::remove(originPath);
         }
-    }
+    });
 }
 ///
 /// \brief 加载一个sad文件
@@ -825,21 +559,63 @@ QString SAProjectManager::getProjectTempFolderPath(bool autoMakePath)
 /// \brief 添加保存时的额外动作
 /// \param fun 函数指针
 ///
-void SAProjectManager::registerExternAction(SAProjectManager::FunAction savefun, FunAction loadfun)
+void SAProjectManager::addSaveFunctionAction(SAProjectManager::FunAction fun)
 {
-    d_ptr->m_funcSaveActionList.append(savefun);
-    d_ptr->m_funcLoadActionList.append(loadfun);
+    d_ptr->m_funcSaveActionList.append(fun);
 }
-
-/**
- * @brief 注册资窗口类名和子窗口后缀名，如果不注册，将无法保存子窗口到文件，也无法打开对应的子窗口
- * @param className 类名
- * @param savefun 保存时用的函数
- * @param loadfun 加载时用的函数
- */
-void SAProjectManager::registerMdiSubWindow(const QString &className, SubWndSaveFun savefun, SubWndLoadFun loadFun)
+///
+/// \brief 获取保存额外动作的函数指针列表
+/// \return
+///
+const QList<SAProjectManager::FunAction>& SAProjectManager::getSaveFunctionList() const
 {
-    d_ptr->m_funcSubWndSaveLoad[className] = qMakePair(savefun,loadFun);
+    return d_ptr->m_funcSaveActionList;
+}
+///
+/// \brief 移除保存的额外动作函数指针
+/// \param fun
+///
+void SAProjectManager::removeSaveFunctionAction(SAProjectManager::FunAction fun)
+{
+    for(int i=0;i<d_ptr->m_funcSaveActionList.size();++i)
+    {
+        if(d_ptr->m_funcSaveActionList[i].target<void(SAProjectManager*)>() == fun.target<void(SAProjectManager*)>())
+        {
+            d_ptr->m_funcSaveActionList.removeAt(i);
+            return;
+        }
+    }
+}
+///
+/// \brief 添加加载时的额外动作
+/// \param fun
+///
+void SAProjectManager::addLoadFunctionAction(SAProjectManager::FunAction fun)
+{
+    d_ptr->m_funcLoadActionList.append(fun);
+}
+///
+/// \brief 获取加载额外动作的函数指针列表
+/// \return
+///
+const QList<SAProjectManager::FunAction> &SAProjectManager::getLoadFunctionList() const
+{
+    return d_ptr->m_funcLoadActionList;
+}
+///
+/// \brief  移除加载的额外动作函数指针
+/// \param fun
+///
+void SAProjectManager::removeLoadFunctionAction(SAProjectManager::FunAction fun)
+{
+    for(int i=0;i<d_ptr->m_funcLoadActionList.size();++i)
+    {
+        if(d_ptr->m_funcLoadActionList[i].target<void(SAProjectManager*)>() == fun.target<void(SAProjectManager*)>())
+        {
+            d_ptr->m_funcLoadActionList.removeAt(i);
+            return;
+        }
+    }
 }
 
 void SAProjectManager::setupUI(SAUIInterface *ui)
@@ -925,15 +701,13 @@ bool SAProjectManager::saveAs(const QString &savePath)
     removeNonExistDatas(savePath);
     //保存数据
     saveValues(savePath);
-    //把路径设置到该类中
+
+
     setProjectFullPath(savePath);
-    //保存窗口
-    saveSubWindowToFolder(getProjectSubWindowFolderPath(true),true);
-    //执行注册的保存操作函数
-    for(FunAction fun : d_ptr->m_funcSaveActionList)
-    {
+    std::for_each(d_ptr->m_funcSaveActionList.begin(),d_ptr->m_funcSaveActionList.end()
+                  ,[this](FunAction fun){
         fun(this);
-    }
+    });
     setDirty(false);
     emit messageInformation(tr("success save project:\"%1\" ").arg(savePath)
                             ,SA::NormalMessage
@@ -962,9 +736,8 @@ bool SAProjectManager::load(const QString &projectedPath)
 
     //加载变量
     loadValues(projectedPath,valNameList);
-    //加载子窗口
-    loadSubWindowFromFolder(getProjectSubWindowFolderPath(projectedPath,false));
-    //
+
+
     setProjectFullPath(projectedPath);
     std::for_each(d_ptr->m_funcLoadActionList.begin(),d_ptr->m_funcLoadActionList.end()
                   ,[this](FunAction fun){

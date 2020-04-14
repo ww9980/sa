@@ -85,11 +85,14 @@ private:
     void initUIReflection();
 
 public:
-    //根据类名来获取图标
-    static QIcon getIconByWndClassName(QWidget* w);
+    static QIcon getIconByWndType(SA::SubWndType type);
     //-----------------------状态栏响应-------------------------
     //状态栏 - 显示进度状态
     //显示消息，如果interval大于0，将会在状态栏上也显示，显示的时间为interval(ms)的值
+
+
+
+
 public slots:
     /// \group 进度栏 消息窗口的相关操作
     /// \{
@@ -127,8 +130,8 @@ public:
     /// \group 子窗口相关操作
     /// \{
     //创建一个绘图窗口
-    SAMdiSubWindow* createFigureWindow(const QString& title = QString());
-    SAMdiSubWindow* createFigureWindow(SAFigureWindow* fig,const QString& title = QString());
+    QMdiSubWindow* createFigureWindow(const QString& title = QString());
+    QMdiSubWindow* createFigureWindow(SAFigureWindow* fig,const QString& title = QString());
     //判断mdi中是否存在指定的子窗口
     bool isHaveSubWnd(QMdiSubWindow* wndToCheck) const;
     //判断是否存在绘图窗口
@@ -480,12 +483,12 @@ public:
 
     // 子窗口的创建
     template<typename INNERWIDGET>
-    SAMdiSubWindow* createMdiSubWindow(const QString& title);
+    SAMdiSubWindow* createMdiSubWindow(SA::SubWndType type,const QString& title);
     // 子窗口的创建
     template<typename INNERWIDGET,typename Arg0>
-    SAMdiSubWindow* createMdiSubWindow(const QString& title,Arg0 arg0);
+    SAMdiSubWindow* createMdiSubWindow(SA::SubWndType type,const QString& title,Arg0 arg0);
     // 子窗口的创建
-    SAMdiSubWindow* createMdiSubWindow(QWidget* w, const QString& title);
+    SAMdiSubWindow* createMdiSubWindow(SA::SubWndType type,QWidget* w,const QString& title);
 
 
 
@@ -539,6 +542,9 @@ private:
     void updateChartGridActionState(SAChart2D *chart);
     void updateSelectActionState(SAChart2D *chart);
     void updateChartEditorActionState(SAChart2D *chart);
+    //子窗口序列化
+    void __saveSubWindowToFolder(const QString& folderPath);
+    void __loadSubWindowFromFolder(const QString& folderPath);
 private:
 #ifdef SA_USE_RIBBON_UI
     QScopedPointer<MainWindowPrivate> ui;
@@ -560,7 +566,6 @@ private:
     unsigned int m_nUserChartCount;
     QStringList m_recentOpenFiles;///< 记录最近打开的文件
     QStringList m_recentOpenProjectFolders; ///< 记录最近打开的项目目录
-
 };
 
 ///
@@ -570,13 +575,14 @@ private:
 /// \return MdiSubWindow的指针,若没创建成功返回nullptr
 ///
 template<typename INNERWIDGET>
-SAMdiSubWindow *MainWindow::createMdiSubWindow(const QString &title)
+SAMdiSubWindow *MainWindow::createMdiSubWindow(SA::SubWndType type, const QString &title)
 {
     SAMdiSubWindow* pSubw = m_mdiManager.newMdiSubWnd<SAMdiSubWindow,INNERWIDGET>();
     if(nullptr == pSubw)
         return pSubw;
+    pSubw->setType(type);
     pSubw->setWindowTitle(title);
-    pSubw->setWindowIcon(getIconByWndClassName(pSubw->widget()));
+    pSubw->setWindowIcon(getIconByWndType(type));
     connect(pSubw,&SAMdiSubWindow::closedWindow
             ,this,&MainWindow::onSubWindowClosed);
     emit subWindowHaveCreated(pSubw);
@@ -584,13 +590,14 @@ SAMdiSubWindow *MainWindow::createMdiSubWindow(const QString &title)
 }
 
 template<typename INNERWIDGET,typename Arg0>
-SAMdiSubWindow *MainWindow::createMdiSubWindow(const QString &title, Arg0 arg0)
+SAMdiSubWindow *MainWindow::createMdiSubWindow(SA::SubWndType type, const QString &title, Arg0 arg0)
 {
     SAMdiSubWindow* pSubw = m_mdiManager.newMdiSubWnd<SAMdiSubWindow,INNERWIDGET>(arg0);
     if(nullptr == pSubw)
         return pSubw;
+    pSubw->setType(type);
     pSubw->setWindowTitle(title);
-    pSubw->setWindowIcon(getIconByWndClassName(pSubw->widget()));
+    pSubw->setWindowIcon(getIconByWndType(type));
     connect(pSubw,&SAMdiSubWindow::closedWindow
             ,this,&MainWindow::onSubWindowClosed);
     emit subWindowHaveCreated(pSubw);
@@ -598,4 +605,17 @@ SAMdiSubWindow *MainWindow::createMdiSubWindow(const QString &title, Arg0 arg0)
 }
 
 
+
+///
+/// \brief 根据子窗口类型获取后缀名
+/// \param type 子窗口类型
+/// \return 后缀名
+///
+QString get_sub_window_type_suffix(SA::SubWndType type);
+//保存子窗口到文件
+bool save_sub_window(SAMdiSubWindow* w, const QString &folderPath, QString *errString);
+//重文件加载子窗口
+QMdiSubWindow* load_sub_window(SAUIInterface *ui, const QString& filePath, QString *errString);
+//把没能和SubWindowList对应的文件删除
+void remove_figure_file_not_in_sub_window_list(const QString &folderPath,const QList<QMdiSubWindow*>& subWindows);
 #endif // MAINWINDOW_H

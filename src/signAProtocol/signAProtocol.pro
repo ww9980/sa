@@ -5,7 +5,7 @@
 #
 #-------------------------------------------------
 
-
+message("\n")
 message("--------------SA protocol about lib--------------------------")
 message(Qt version: $$[QT_VERSION])
 message(Qt is installed in $$[QT_INSTALL_PREFIX])
@@ -22,7 +22,7 @@ CONFIG(debug, debug|release){
 }
 CONFIG += c++11
 
-#include($$PWD/../czy/czy_math.pri)
+include($$PWD/../czy/czy_math.pri)
 
 DEFINES += SA_PROTOCOL_MAKE
 
@@ -36,7 +36,8 @@ HEADERS += \
     SACRC.h \
     SAXMLProtocolParser.h \
     SAAbstractProtocolParser.h \
-    SAXMLConfigParser.h
+    SAXMLConfigParser.h \
+    tstSignAProtocol.h
 
 SOURCES += \
     SAVariantCaster.cpp \

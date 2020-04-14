@@ -3,36 +3,34 @@
 #include <SATcpSocket.h>
 #include <QList>
 #include <QThread>
-#include "SASession.h"
+#include "SATcpSection.h"
 
 class SATcpServePrivate
 {
     SA_IMPL_PUBLIC(SATcpServe)
 public:
     SATcpServePrivate(SATcpServe* p);
-    void recordSectionThread(SASession* s,QThread* p);
-    void removeSection(SASession* s);
+    void recordSectionThread(SATcpSection* s,QThread* p);
+    void removeSection(SATcpSection* s);
     QList<SATcpSocket*> m_socketList;
-    QMap<SASession*,QThread*> m_section2thread;
-    SATcpServe::FactroyFunPtr m_factoryFun;
+    QMap<SATcpSection*,QThread*> m_section2thread;
 
 };
 
-SATcpServePrivate::SATcpServePrivate(SATcpServe *p):q_ptr(p),
-    m_factoryFun(nullptr)
+SATcpServePrivate::SATcpServePrivate(SATcpServe *p):q_ptr(p)
 {
     
 }
 
-void SATcpServePrivate::recordSectionThread(SASession* s,QThread* p)
+void SATcpServePrivate::recordSectionThread(SATcpSection* s,QThread* p)
 {
     m_section2thread[s] = p;
 }
 
-void SATcpServePrivate::removeSection(SASession* s)
+void SATcpServePrivate::removeSection(SATcpSection* s)
 {
     m_section2thread.remove(s);
-    m_socketList.removeOne(s->getSocket());
+    m_socketList.removeOne(s->socket());
 }
 
 SATcpServe::SATcpServe(QObject *par):QTcpServer(par)
@@ -61,46 +59,23 @@ QList<SATcpSocket *> SATcpServe::getSockets() const
     return d_ptr->m_socketList;
 }
 
-/**
- * @brief 注册section创建函数指针
- *
- * 如果需要使用特殊的section，调用此函数注册特殊的socket 处理 section
- * @param factoryPtr section创建函数指针
- *
- */
-void SATcpServe::registerSectionFactory(SATcpServe::FactroyFunPtr factoryPtr)
-{
-    d_ptr->m_factoryFun = factoryPtr;
-}
-
 void SATcpServe::incomingConnection(qintptr socketDescriptor)
 {
     FUNCTION_RUN_PRINT();
     qDebug() << "incomingConnection:"<<socketDescriptor;
-
     SATcpSocket *socket = new SATcpSocket();
     if(!socket->setSocketDescriptor(socketDescriptor))
     {
         return;
     }
-    SASession* section = nullptr;
-    if(d_ptr->m_factoryFun)
-    {
-        //存在创建线程不一致
-        section = d_ptr->m_factoryFun(socket,this);
-    }
-    else
-    {
-        //没有指定就用默认section
-        section = new SASession(socket);
-    }
+    SATcpSection* section = new SATcpSection(socket);
     QThread* pt = new QThread();
     section->moveToThread(pt);
     connect(pt, &QThread::finished, section, &QObject::deleteLater);
     connect(pt, &QThread::finished, pt, &QObject::deleteLater);
     //断开自动结束线程
-    connect(section, &SASession::socketDisconnected, this, &SATcpServe::onSectionFinished);
-    connect(section, &SASession::socketDisconnected, pt, &QThread::quit);
+    connect(section, &SATcpSection::socketDisconnected, this, &SATcpServe::onSectionFinished);
+    connect(section, &SATcpSection::socketDisconnected, pt, &QThread::quit);
     d_ptr->recordSectionThread(section,pt);
     pt->start();
     addPendingConnection(socket);
@@ -112,10 +87,17 @@ bool SATcpServe::hasPendingConnections() const
     return QTcpServer::hasPendingConnections();
 }
 
+//QTcpSocket *SATcpServe::nextPendingConnection()
+//{
+//    if(d_ptr->m_socketList.isEmpty())
+//        return nullptr;
+//    return d_ptr->m_socketList.back();
+//}
+
 
 void SATcpServe::onSectionFinished()
 {
-    SASession* p = qobject_cast<SASession*>(sender());
+    SATcpSection* p = qobject_cast<SATcpSection*>(sender());
     d_ptr->removeSection(p);
 }
 

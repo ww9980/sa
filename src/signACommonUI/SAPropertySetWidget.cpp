@@ -15,7 +15,6 @@
 #include <qtpropertymanager.h>
 #include <qteditorfactory.h>
 #include <qtvariantproperty.h>
-#include <QtProperty>
 //#include <QtTreePropertyBrowser>
 //#include <QtButtonPropertyBrowser>
 //#include <QtGroupBoxPropertyBrowser>

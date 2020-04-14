@@ -107,7 +107,7 @@ void SAAbstractDatas::write(QDataStream &out) const
     {
         int id;
         QVariant var;
-        property(i,id,var);
+        getProperty(i,id,var);
         out << id << var;
     }
 }

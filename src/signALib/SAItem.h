@@ -8,7 +8,6 @@ class SAItemPrivate;
 ///
 /// \ingroup SALib
 /// \brief 基本树形结构的条目，是SAAbstractData的基类，提供了名称和图标以及父子关系管理功能
-/// SAItem可用SATree进行管理，形成树形结构
 ///
 class SALIB_EXPORT SAItem
 {
@@ -36,10 +35,9 @@ public:
     int getPropertyCount() const;
 
     //扩展数据的获取操作
-    const QVariant& property(int id) const;
-    QVariant& property(int id);
-    void property(int index,int& id,QVariant& var) const;
-    QVariant getProperty(int id,const QVariant& defaultvar = QVariant());
+    const QVariant& getProperty(int id) const;
+    QVariant& getProperty(int id);
+    void getProperty(int index,int& id,QVariant& var) const;
     //父子条目操作相关
     int childItemCount() const;
     //索引子条目

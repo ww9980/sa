@@ -8,6 +8,7 @@
 #include "CurveSelectDialog.h"
 //#include <SAChartWidget.h>
 #include "SAFigureWindow.h"
+#include "czyMath_Fit.h"
 #include "SAValueManagerModel.h"
 #include "SARandColorMaker.h"
 #include "SABarSeries.h"

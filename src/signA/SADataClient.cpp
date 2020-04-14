@@ -26,10 +26,10 @@ SADataClient::SADataClient(QObject *p):QObject(p)
     //非线程相关的信号槽
     connect(this,&SADataClient::startConnectToServe,m_client,&SATcpDataProcessClient::connectToServe);
     connect(m_client,&SATcpDataProcessClient::clientError,this,&SADataClient::onClientErrorOccure);
-    connect(m_client,&SATcpDataProcessClient::heartbreatTimeout,this,&SADataClient::onHeartbeatCheckerTimerout);
+
     connect(m_client,&SATcpDataProcessClient::connected,this,&SADataClient::onSocketConnected);
     connect(m_client,&SATcpDataProcessClient::disconnected,this,&SADataClient::onSocketDisconnected);
-    connect(m_client,&SATcpDataProcessClient::socketError,this,&SADataClient::onSocketErrorOccure);
+    connect(m_client,&SATcpDataProcessClient::error,this,&SADataClient::onSocketErrorOccure);
 
     //线程启动
     m_thread->start();
@@ -51,16 +51,6 @@ void SADataClient::tryConnectToServe(int retrycount,int timeout)
     m_timeout = timeout;
     //开始连接服务器，连接成功会触发onSocketConnected，从而触发connectedServeResult(true)
     emit startConnectToServe(timeout);
-}
-
-/**
- * @brief 请求2维数据的统计描述
- * @param arrs
- * @param key
- */
-void SADataClient::request2DPointsDescribe(const QVector<QPointF> &arrs, uint key)
-{
-    //m_client->request2DPointsDescribe()
 }
 
 /**

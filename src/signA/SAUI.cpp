@@ -39,13 +39,6 @@ void SAUI::updateValueManagerTreeView()
         m_mainWnd->updateValueManagerTreeView();
 }
 
-SAMdiSubWindow *SAUI::createMdiSubWindow(QWidget *w, const QString &title)
-{
-    if(m_mainWnd)
-        return m_mainWnd->createMdiSubWindow(w,title);
-    return nullptr;
-}
-
 QWidget *SAUI::getMainWindowPtr()
 {
     return m_mainWnd;
@@ -152,12 +145,12 @@ QProgressBar *SAUI::getProgressStatusBar()
     return m_mainWnd->getProgressStatusBar();
 }
 
-SAMdiSubWindow *SAUI::createFigureWindow(const QString &title)
+QMdiSubWindow *SAUI::createFigureWindow(const QString &title)
 {
     return m_mainWnd->createFigureWindow(title);
 }
 
-SAMdiSubWindow *SAUI::createFigureWindow(SAFigureWindow *fig, const QString &title)
+QMdiSubWindow *SAUI::createFigureWindow(SAFigureWindow *fig, const QString &title)
 {
     return m_mainWnd->createFigureWindow(fig,title);
 }

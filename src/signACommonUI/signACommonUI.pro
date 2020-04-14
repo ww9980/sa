@@ -20,18 +20,17 @@ QWT_CONFIG += QwtDll
 DEFINES += SA_COMMON_UI_MAKE #make dll
 DEFINES += SA_COMMON_UI_USE_DYNAMIC #定义使用dynamic_cast 而不是rtti
 DEPENDPATH += ../bin/lib
-#czy
-#sa util
-include($$PWD/../signAUtil/signAUtil.pri)
 #sa api support
 include($$PWD/../signALib/signALib.pri)
 #sa protocal support
 include($$PWD/../signAProtocol/signAProtocol.pri)
 #sa chart support
 include($$PWD/../signAChart/signAChart.pri)
+#czy
+include($$PWD/../czy/czy.pri)
 #propertybrowser
 #include($$PWD/../3rdParty/qtpropertybrowser/src/qtpropertybrowser.pri)#propertybrowser support
-include($$PWD/../3rdParty/qtpropertybrowser/propertyBrowser.pri)
+include($$[QT_INSTALL_PREFIX]/../Src/qttools/src/shared/qtpropertybrowser/qtpropertybrowser.pri)
 #QWT
 include($$PWD/../3rdParty/qwt/qwt_set.pri)
 #color picker support
@@ -76,8 +75,7 @@ HEADERS += \
     SAValueTableOptCommands.h \
     SAPlotDataModel.h \
     SAGUIGlobalConfig.h \
-    SAFigureSetWidget.h \
-    SAMainWindow.h
+    SAFigureSetWidget.h
 
 SOURCES += \
     SAUIReflection.cpp \
@@ -111,8 +109,7 @@ SOURCES += \
     SAValueTableOptDeleteCommand_impl.cpp \
     SAValueTableOptInsertCommand_impl.cpp \
     SAGUIGlobalConfig.cpp \
-    SAFigureSetWidget.cpp \
-    SAMainWindow.cpp
+    SAFigureSetWidget.cpp
 
 FORMS += \
     SAValueSelectDialog.ui \

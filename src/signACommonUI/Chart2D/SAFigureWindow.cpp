@@ -74,10 +74,9 @@ public:
 //=============================================================================
 
 SAFigureWindow::SAFigureWindow(QWidget *parent) :
-    SAMainWindow(parent)
+    QMainWindow(parent)
     ,d_ptr(new SAFigureWindowPrivate(this))
 {
-    askOnCloseEvent(false);
     d_ptr->setupUI();
     setFocusPolicy(Qt::ClickFocus);
     static int s_figure_count=0;

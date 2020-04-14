@@ -23,6 +23,9 @@ QT += network
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 
+DEFINES -= SA_TDMS
+
+
 TARGET = signA
 TEMPLATE = app
 CONFIG += c++11
@@ -77,8 +80,6 @@ FORMS    += \
 OTHER_FILES += \
     readme.md\
     $$PWD/../readme.md\
-    $$PWD/../schedule.md\
-    $$PWD/../../doc/dev_records.md\
     logo.rc
 
 RESOURCES += \
@@ -102,6 +103,8 @@ include($$PWD/../signAProtocol/signAProtocol.pri)
 include($$PWD/../signAServe/signAServe.pri)
 #sa api support
 include($$PWD/../signALib/signALib.pri)
+#sa multiprocessing process support
+include($$PWD/../signAProcess/signAProcess.pri)
 #sa chart support
 include($$PWD/../signAChart/signAChart.pri)
 #sa signACommonUI support
@@ -110,6 +113,11 @@ include($$PWD/../signACommonUI/signACommonUI.pri)
 include($$PWD/../SARibbonBar/SARibbon/SARibbonBar.pri)
 #}
 
+
+#the czy extern support
+#{
+include($$PWD/../czy/czy.pri)#the czy extern support
+#}
 
 include($$PWD/model/model.pri)# the seldefine model
 win32{

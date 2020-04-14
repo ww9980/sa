@@ -5,6 +5,7 @@
 #
 #-------------------------------------------------
 
+message("")
 message("--------------SA Serve about lib--------------------------")
 message(Qt version: $$[QT_VERSION])
 message(Qt is installed in $$[QT_INSTALL_PREFIX])
@@ -29,30 +30,31 @@ HEADERS += \
     SAServeGlobal.h \
     SAAbstractServe.h \
     3rdParty/CRC.h \
-    SASession.h \
     SATcpSocket.h \
     SATcpServe.h \
+    SATcpAssignServe.h \
     SAServeShareMemory.h \
     SATcpClient.h \
     SAServerDefine.h \
     SATcpDataProcessClient.h \
+    SATcpSection.h \
     SAServeHandleFun.h
 
 
 
 SOURCES += \
     SAAbstractServe.cpp \
-    SASession.cpp \
     SATcpSocket.cpp \
     SATcpServe.cpp \
+    SATcpAssignServe.cpp \
     SAServeShareMemory.cpp \
     SATcpClient.cpp \
     SATcpDataProcessClient.cpp \
+    SATcpSection.cpp \
     SAServeHandleFun.cpp
 
-#sa lib
-include($$PWD/../signALib/signALib.pri)
 #sa protocol support
 include($$PWD/../signAProtocol/signAProtocol.pri)
+include($$PWD/../czy/czy.pri)
 
 OTHER_FILES += readme.md

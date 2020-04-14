@@ -3,15 +3,12 @@
 #include <QVector>
 #include "SAVectorPointF.h"
 #include "SAVectorDouble.h"
-#include "SAPolyFit.h"
+#include "czyMath_Fit.h"
 #include "SATableVariant.h"
 #include "SAValueManager.h"
 #include <QCoreApplication>
 #define TR(str)\
     QCoreApplication::translate("sa_fun_fit", str, 0)
-
-void setFitInfo(SATableVariant* info,const SA::SAPolyFit* fit);
-
 
 std::tuple<std::shared_ptr<SAVectorDouble>, std::shared_ptr<SATableVariant> >
 saFun::polyfit(const SAAbstractDatas *wave, int n)
@@ -21,7 +18,7 @@ saFun::polyfit(const SAAbstractDatas *wave, int n)
     {
         return std::make_tuple(nullptr,nullptr);
     }
-    SA::SAPolyFit fit;
+    czy::Math::PolyFit fit;
     if(!fit.polyfit(xs.data(),ys.data(),xs.size(),n))
     {
         saFun::setErrorString(TR("can not polyfit"));
@@ -57,7 +54,7 @@ saFun::polyfit(const SAAbstractDatas *x, const SAAbstractDatas *y, int n)
         return std::make_tuple(nullptr,nullptr);
     }
     saFun::fixSizeXYVector(xs,ys);
-    SA::SAPolyFit fit;
+    czy::Math::PolyFit fit;
     if(!fit.polyfit(xs.data(),ys.data(),xs.size(),n))
     {
         saFun::setErrorString(TR("can not polyfit"));
@@ -81,7 +78,7 @@ saFun::polyfit(const SAAbstractDatas *x, const SAAbstractDatas *y, int n)
 std::tuple<std::shared_ptr<SAVectorDouble>, std::shared_ptr<SATableVariant> >
 saFun::polyfit(const QVector<double> &xs, const QVector<double> &ys, int n)
 {
-    SA::SAPolyFit fit;
+    czy::Math::PolyFit fit;
     if(!fit.polyfit(xs.data(),ys.data(),xs.size(),n))
     {
         saFun::setErrorString(TR("can not polyfit"));
@@ -121,7 +118,7 @@ std::tuple<std::shared_ptr<SAAbstractDatas> > saFun::polyval(const SAAbstractDat
 
 void saFun::polyval(const QVector<double> &x, const SAVectorDouble *factor,SAVectorDouble* res)
 {
-    SA::SAPolyFit fit;
+    czy::Math::PolyFit fit;
     fit.setFactors(factor->cbegin(),factor->cend());
     if(res)
     {
@@ -134,7 +131,7 @@ void saFun::polyval(const QVector<double> &x, const SAVectorDouble *factor,SAVec
 
 void saFun::polyval(const QVector<double> &x, const SAVectorDouble *factor, SAVectorPointF *res)
 {
-    SA::SAPolyFit fit;
+    czy::Math::PolyFit fit;
     fit.setFactors(factor->cbegin(),factor->cend());
     if(res)
     {
@@ -147,7 +144,7 @@ void saFun::polyval(const QVector<double> &x, const SAVectorDouble *factor, SAVe
 
 
 
-void setFitInfo(SATableVariant *info, const SA::SAPolyFit *fit)
+void saFun::setFitInfo(SATableVariant *info, const czy::Math::PolyFit *fit)
 {
     int row=0;
     info->setTableData(row,0,"SSR");info->setTableData(row,1,fit->getSSR());++row;

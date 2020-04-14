@@ -85,7 +85,6 @@ void SATcpClientPrivate::setHeartbreatInterval(int ms)
 }
 
 
-
 SATcpClient::SATcpClient(QObject* par):QObject(par)
   ,d_ptr(new SATcpClientPrivate(this))
 {
@@ -97,17 +96,11 @@ SATcpClient::~SATcpClient()
 
 }
 
-/**
- * @brief 向socket安全写数据，此函数会保证数据完整写入
- * @param header
- * @param data
- * @return
- */
 bool SATcpClient::write(const SAProtocolHeader &header, const QByteArray &data)
 {
     if(d_ptr->m_socket)
     {
-        return SA::write(header,data,getSocket());
+        return SA::write(header,data,d_ptr->m_socket);
     }
     return false;
 }
@@ -122,37 +115,22 @@ bool SATcpClient::write(const SAProtocolHeader &header, const QByteArray &data)
  */
 bool SATcpClient::deal(const SAProtocolHeader &header, const QByteArray &data)
 {
-    switch (header.protocolTypeID)
-    {
-    case SA::ProtocolTypeHeartbreat:
-    {
-        //收到心跳，记录最后时间
-        d_ptr->m_lastRecHeartbreakDatetime = QDateTime::currentDateTime();
-        return true;
-    }
-    case SA::ProtocolTypeXml:
-    {
-        //解析xml协议
-        SAXMLProtocolParser xml;
-        if(!xml.fromByteArray(data))
-        {
-            emit clientError(InvalidXmlProtocol);
-            return false;
-        }
-        return dealXmlProtocol(header,&xml);
-    }
-    default:
-        break;
-    }
-    SA::FunHandle fun = SA::get_serve_funciton_handle(header.protocolTypeID,header.protocolFunID);
+    SA::FunHandle fun = SA::get_serve_funciton_handle(header.protocolFunID);
     if(nullptr == fun)
     {
         return false;
     }
-    return fun(header,data,getSocket(),this);
+    QVariantHash res;
+    bool stat = fun(header,data,d_ptr->m_socket,&res);
+    if(!stat)
+    {
+        return false;
+    }
+    dealResult(header,res);
+    return true;
 }
 
-bool SATcpClient::dealXmlProtocol(const SAProtocolHeader &header, SAXMLProtocolParser *xml)
+bool SATcpClient::dealResult(const SAProtocolHeader &header, const QVariantHash &data)
 {
     switch (header.protocolFunID)
     {
@@ -161,7 +139,7 @@ bool SATcpClient::dealXmlProtocol(const SAProtocolHeader &header, SAXMLProtocolP
         return true;
     case SA::ProtocolFunReplyToken:
         {
-            QString token = xml->getValue("token").toString();
+            QString token = data.value("token").toString();
             if(!token.isEmpty())
             {
                 emit replyToken(token,header.sequenceID);
@@ -227,11 +205,11 @@ bool SATcpClient::connectToServe(int timeout)
 
 void SATcpClient::disconnectFromServe()
 {
-    if(nullptr == getSocket())
+    if(nullptr == d_ptr->m_socket)
     {
         return;
     }
-    getSocket()->disconnectFromHost();
+    d_ptr->m_socket->disconnectFromHost();
 }
 
 /**
@@ -255,26 +233,15 @@ void SATcpClient::setHeartbreakCheck(bool enable)
     }
 }
 
-/**
- * @brief 客户端-发出token请求
- *
- * 发送协议：
- * default group:
- * "pid": int->程序pid
- * "appid": string->程序id
- *
- * @param pid
- * @param appid
- */
 void SATcpClient::requestToken(int pid, const QString &appid)
 {
-    SA::request_token_xml(pid,appid,getSocket());
+    SA::request_token_xml(pid,appid,d_ptr->m_socket);
 }
 
 void SATcpClient::requestHeartbreat()
 {
     d_ptr->m_lastRequestHeartbreakDatetime = QDateTime::currentDateTime();
-    SA::request_heartbreat(getSocket());
+    SA::request_heartbreat(d_ptr->m_socket);
 }
 
 void SATcpClient::onSocketConnected()
@@ -325,7 +292,7 @@ void SATcpClient::connectSocket()
     connect(d_ptr->m_socket,&QAbstractSocket::connected,this,&SATcpClient::onSocketConnected);
     connect(d_ptr->m_socket,&QAbstractSocket::disconnected,this,&SATcpClient::disconnected);
     connect(d_ptr->m_socket,static_cast<void(QAbstractSocket::*)(QAbstractSocket::SocketError)>(&QAbstractSocket::error)
-            ,this,&SATcpClient::socketError);
+            ,this,&SATcpClient::error);
     connect(d_ptr->m_socket,&SATcpSocket::receivedData,this,&SATcpClient::onReceivedData);
     connect(d_ptr->m_socket,&QIODevice::aboutToClose,this,&SATcpClient::aboutToClose);
 }
@@ -335,7 +302,7 @@ void SATcpClient::disconnectSocket()
     disconnect(d_ptr->m_socket,&QAbstractSocket::connected,this,&SATcpClient::connected);
     disconnect(d_ptr->m_socket,&QAbstractSocket::disconnected,this,&SATcpClient::disconnected);
     disconnect(d_ptr->m_socket,static_cast<void(QAbstractSocket::*)(QAbstractSocket::SocketError)>(&QAbstractSocket::error)
-            ,this,&SATcpClient::socketError);
+            ,this,&SATcpClient::error);
     disconnect(d_ptr->m_socket,&SATcpSocket::receivedData,this,&SATcpClient::onReceivedData);
     disconnect(d_ptr->m_socket,&QIODevice::aboutToClose,this,&SATcpClient::aboutToClose);
 }

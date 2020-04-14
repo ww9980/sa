@@ -9,7 +9,6 @@
 
 QJsonObject write_item_to_json(SAItem* item);
 bool read_item_from_json(const QJsonObject &json, SAItem* item);
-
 class SATreePrivate
 {
     SA_IMPL_PUBLIC(SATree)
@@ -200,7 +199,7 @@ QJsonObject write_item_to_json(SAItem* item)
         {
             int id;
             QVariant var;
-            item->property(i,id,var);
+            item->getProperty(i,id,var);
             propObj.insert(QString::number(id),QJsonValue::fromVariant(var));
         }
         itemObj.insert("porperty",propObj);
@@ -299,5 +298,4 @@ bool fromJson(const QString &json, SATree *tree)
             tree->appendItem(item.release());
         }
     }
-    return true;
 }

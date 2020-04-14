@@ -3,9 +3,8 @@
 
 #include <QMainWindow>
 #include <QScopedPointer>
-#include <QPainter>
-#include "SAMainWindow.h"
 #include "SACommonUIGlobal.h"
+#include <QPainter>
 #include "qwt_plot_histogram.h"
 class QwtPlotCurve;
 class QwtPlotItem;
@@ -21,7 +20,7 @@ class SAFigureChartRubberbandEditOverlay;
 ///
 /// \brief SA的绘图窗口
 ///
-class SA_COMMON_UI_EXPORT SAFigureWindow : public SAMainWindow
+class SA_COMMON_UI_EXPORT SAFigureWindow : public QMainWindow
 {
     Q_OBJECT
     SA_IMPL(SAFigureWindow)

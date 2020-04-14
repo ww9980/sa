@@ -5,7 +5,8 @@
 #include <QList>
 #include <algorithm>
 #include <vector>
-#include "SAHashTable.h"
+
+#include <czyQtApp.h>//QTable使用
 #include <SAVariantHashTableModel.h>
 class SACsvFileTableModel : public SAVariantHashTableModel
 {
@@ -16,7 +17,7 @@ public:
 
     QVariant headerData(int section, Qt::Orientation orientation,int role) const;
     Qt::ItemFlags flags(const QModelIndex &index) const; 
-    static bool getCzyHashTable(const QString& fileName,SAHashTable<QVariant>& data);
+    static bool getCzyHashTable(const QString& fileName,czy::QtApp::QczyHashTable<QVariant>& data);
 private:
     static int advquoted(const QString& s, QString& fld, int i);
     static int advplain(const QString& s, QString& fld, int i);

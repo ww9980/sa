@@ -16,12 +16,11 @@
 #ifdef _DEBUG_OUTPUT
 #include <QElapsedTimer>
 #endif
-SADataProcServe::SADataProcServe(QObject *parent):SATcpServe(parent)
+SADataProcServe::SADataProcServe(QObject *parent):SATCPAssignServe(parent)
   ,m_pid(0)
   ,m_willBeQuit(false)
   ,m_checkLiveTime(10000)//存活20s
 {
-
 }
 
 SADataProcServe::~SADataProcServe()

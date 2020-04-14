@@ -9,12 +9,12 @@ template <typename T>
 class SAArrayTable
 {
 public:
-    typedef QVector<T> TableRow;
+    typedef QVector<T> QTableRow;
     SAArrayTable():m_columns(0){}
     SAArrayTable(int rows,int columns);
     const T& at(int r,int c) const;
     T& at(int r,int c);
-    bool appendRow(const TableRow& row);
+    bool appendRow(const QVector<T>& row);
     ///
     /// \brief 表的行数
     /// \return
@@ -27,7 +27,7 @@ public:
     int columnCount() const;
 
 private:
-    QVector< TableRow > m_d;
+    QVector< QVector<T> > m_d;
     size_t m_columns;
 };
 
@@ -56,7 +56,7 @@ T &SAArrayTable<T>::at(int r, int c)
 }
 
 template <typename T>
-bool SAArrayTable<T>::appendRow(const TableRow &row)
+bool SAArrayTable<T>::appendRow(const QVector<T> &row)
 {
     size_t s = row.size ();
     bool isSuccess = false;
@@ -111,8 +111,7 @@ class SAHashTable
 {
 public:
     typedef uint Index;
-    typedef QPair<Index,Index> Indexs;
-    typedef QHash<Indexs,T> Table;
+    typedef QHash<QPair<Index,Index>,T> Table;
 public:
     SAHashTable():m_columns(0),m_rows(0){}
     ~SAHashTable(){}

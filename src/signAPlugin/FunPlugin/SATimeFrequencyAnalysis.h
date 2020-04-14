@@ -6,7 +6,7 @@
 #include <QWidget>
 #include <qwt_plot_curve.h>
 #include <memory>
-#include "SADsp.h"
+#include <czyMath_DSP.h>
 namespace Ui {
 class SATimeFrequencyAnalysis;
 }
@@ -104,11 +104,11 @@ private:
     QButtonGroup* m_groupAnasysSet;///< 分析模式选择
     QButtonGroup* m_groupMagSet;///< 幅值设置
     QButtonGroup* m_groupPSDSet;///< psd分析模式
-    SA::SADsp::SpectrumType m_magType;///< 频谱模式
-    SA::SADsp::PowerDensityWay m_psdType;///< 功率谱模式
+    czy::Math::DSP::SpectrumType m_magType;///< 频谱模式
+    czy::Math::DSP::PowerDensityWay m_psdType;///< 功率谱模式
     CalcType m_spectrumType;///< 计算方式-功率谱-fft
     bool m_isDetrend;///< 是否去均值
-    SA::SADsp::WindowType m_signalWindow;///< 信号的窗
+    czy::Math::DSP::WindowType m_signalWindow;///< 信号的窗
 };
 
 #endif // SATIMEFREQUENCYANALYSIS_H
